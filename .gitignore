@@ -1,0 +1,48 @@
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+dist/
+build/
+*.egg
+
+# Virtual environment
+venv/
+env/
+.venv/
+
+# Model files (large)
+*.pt
+*.pth
+# *.pkl  # Allow models for deployment
+*.joblib
+!backend/results/saved_model/*.pkl
+!backend/results/saved_model/*.npy
+backend/results/*_cache.npy
+
+# Data
+backend/data/
+
+# Documentation
+
+
+# IDE
+.vscode/
+.idea/
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Saved model artifacts
+backend/model/saved_model/*.png
+backend/model/saved_model/*.json
+
+# Jupyter
+.ipynb_checkpoints/
+
+# Kaggle notebook (local only)
+kaggle_notebook.py
+
+# Agents
+.agents/
