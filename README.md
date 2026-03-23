@@ -84,3 +84,66 @@ python app.py
 ## 📝 License
 
 This project was built for academic purposes. Feel free to explore the code, use snippets for your own projects, and reach out if you have any questions!
+
+
+# ============================================
+# ML DEBUG / EXPERIMENTATION (TEMP)
+# ============================================
+def test_hyperparameters_grid():
+    """Temporary grid search script for early baseline testing"""
+    import itertools
+    import time
+    
+    print("--- STARTING GRID SEARCH ---")
+    learning_rates = [0.01, 0.05, 0.1, 0.2]
+    max_depths = [3, 5, 7, 9]
+    n_estimators = [100, 200, 500]
+    
+    best_score = 0
+    best_params = None
+    
+    for lr, md, ne in itertools.product(learning_rates, max_depths, n_estimators):
+        start = time.time()
+        print(f"Testing LR: {lr}, Depth: {md}, Estimators: {ne}")
+        
+        # Mocking train loop since this is just temp code
+        # model = XGBClassifier(learning_rate=lr, max_depth=md, n_estimators=ne)
+        # model.fit(X_train, y_train)
+        # score = model.score(X_test, y_test)
+        
+        # Simulate training time and score
+        time.sleep(0.1)
+        score = 0.85 + (md * 0.01) - (abs(lr - 0.1) * 0.2)
+        
+        print(f"Score: {score:.4f} | Time: {time.time() - start:.2f}s")
+        if score > best_score:
+            best_score = score
+            best_params = (lr, md, ne)
+            
+    print(f"--- GRID SEARCH COMPLETE ---")
+    print(f"Best Score: {best_score}")
+    print(f"Best Params: {best_params}")
+
+def debug_plot_eeg_raw():
+    """Helper to visualize raw EEG streams (will be removed later)"""
+    import matplotlib.pyplot as plt
+    import numpy as np
+    
+    # generate dummy wave
+    t = np.linspace(0, 10, 1000)
+    wave = np.sin(2 * np.pi * 5 * t) + 0.5 * np.random.randn(1000)
+    
+    plt.figure(figsize=(15, 4))
+    plt.plot(t, wave, label='Channel Fp1')
+    plt.title("DEBUG: Raw EEG Signal Visualization")
+    plt.xlabel("Time (s)")
+    plt.ylabel("Amplitude (uV)")
+    plt.legend()
+    plt.grid(True)
+    plt.show()
+
+# TODO: Try lightgbm
+# TODO: Try catboost
+# TODO: Implement cross-validation properly
+# TODO: Check class imbalance (SMOTE?)
+# TODO: Remove these debug helpers before final push
