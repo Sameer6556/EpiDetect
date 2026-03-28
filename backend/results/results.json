@@ -1,0 +1,95 @@
+{
+  "results": {
+    "Accuracy_mean": 99.4,
+    "Accuracy_std": 0.9165151389911679,
+    "Precision_mean": 99.0909090909091,
+    "Precision_std": 2.7272727272727284,
+    "Recall_mean": 98.0,
+    "Recall_std": 4.0,
+    "F1_Score_mean": 98.47117794486215,
+    "F1_Score_std": 2.3388978226625015,
+    "AUC_ROC_mean": 99.925,
+    "AUC_ROC_std": 0.225,
+    "Specificity_mean": 99.7499999999975,
+    "Specificity_std": 0.7499999999999787,
+    "Kappa_mean": 98.09888906274448,
+    "Kappa_std": 2.9065230511248124
+  },
+  "confusion_matrix": [
+    [
+      399,
+      1
+    ],
+    [
+      2,
+      98
+    ]
+  ],
+  "errors": 3,
+  "total_signals": 500,
+  "time_seconds": 524.8,
+  "baselines_raw": [
+    {
+      "name": "Raw - Logistic Regression",
+      "Acc": 77.2,
+      "Prec": 44.08467023172905,
+      "Rec": 51.0,
+      "F1": 46.98220298220298,
+      "AUC": 68.25,
+      "Spec": 83.74999999999791,
+      "Kappa": 32.62394269687546
+    },
+    {
+      "name": "Raw - Random Forest",
+      "Acc": 82.2,
+      "Prec": 60.0,
+      "Rec": 11.0,
+      "F1": 18.251748251748253,
+      "AUC": 82.825,
+      "Spec": 99.99999999999748,
+      "Kappa": 15.658093106126364
+    },
+    {
+      "name": "Raw - SVM (RBF)",
+      "Acc": 90.4,
+      "Prec": 92.72222222222221,
+      "Rec": 57.0,
+      "F1": 69.02686675209895,
+      "AUC": 89.05,
+      "Spec": 98.74999999999753,
+      "Kappa": 64.00774352996515
+    }
+  ],
+  "baselines_feat": [
+    {
+      "name": "Feat - Logistic Regression",
+      "Acc": 99.0,
+      "Prec": 97.6923076923077,
+      "Rec": 98.0,
+      "F1": 97.64302059496568,
+      "AUC": 99.8,
+      "Spec": 99.2499999999975,
+      "Kappa": 97.01590544287174
+    },
+    {
+      "name": "Feat - Random Forest",
+      "Acc": 98.0,
+      "Prec": 97.42424242424242,
+      "Rec": 93.0,
+      "F1": 94.74474957447093,
+      "AUC": 99.9,
+      "Spec": 99.24999999999751,
+      "Kappa": 93.52472101003073
+    },
+    {
+      "name": "Feat - SVM (RBF)",
+      "Acc": 98.6,
+      "Prec": 97.5,
+      "Rec": 96.0,
+      "F1": 96.60287081339712,
+      "AUC": 99.8,
+      "Spec": 99.2499999999975,
+      "Kappa": 95.72636665659921
+    }
+  ]
+}

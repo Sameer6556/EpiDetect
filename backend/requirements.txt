@@ -1,0 +1,26 @@
+# Seizure Detection Backend — Dependencies
+
+# Core scientific computing
+numpy
+scipy
+
+# Machine learning
+scikit-learn
+joblib
+
+# Web API
+flask
+flask-cors
+
+# Data handling
+pandas
+
+# Visualization (used in training plots)
+matplotlib
+seaborn
+
+# Explainability (XAI)
+shap
+
+# Production API
+gunicorn
