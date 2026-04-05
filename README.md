@@ -147,3 +147,58 @@ def debug_plot_eeg_raw():
 # TODO: Implement cross-validation properly
 # TODO: Check class imbalance (SMOTE?)
 # TODO: Remove these debug helpers before final push
+
+
+# ============================================
+# API DEBUG ENDPOINTS (TEMP)
+# ============================================
+
+@app.route('/debug/health', methods=['GET'])
+def extended_health_check():
+    import psutil
+    import platform
+    import sys
+    from datetime import datetime
+    
+    return jsonify({
+        "status": "online",
+        "python_version": sys.version,
+        "platform": platform.platform(),
+        "cpu_usage": psutil.cpu_percent(),
+        "memory_usage": psutil.virtual_memory().percent,
+        "model_loaded": True,
+        "timestamp": datetime.now().isoformat()
+    })
+
+@app.route('/debug/mock_predict', methods=['POST'])
+def mock_prediction():
+    """Return a mock prediction for frontend testing without loading heavy model"""
+    import time
+    import random
+    
+    # simulate processing delay
+    time.sleep(1.5)
+    
+    is_seizure = random.random() > 0.5
+    confidence = random.uniform(0.7, 0.99)
+    
+    return jsonify({
+        "success": True,
+        "prediction": "Seizure Detected" if is_seizure else "Normal Activity",
+        "confidence": confidence,
+        "processing_time_ms": 1500,
+        "debug_mode": True
+    })
+
+def log_request_middleware(request):
+    """Log all incoming requests for debugging"""
+    from datetime import datetime
+    print(f"[{datetime.now()}] {request.method} {request.path}")
+    print(f"Headers: {dict(request.headers)}")
+    if request.is_json:
+        print(f"Body: {request.json}")
+    print("-" * 50)
+
+# TODO: Add rate limiting
+# TODO: Secure endpoints with API key
+# TODO: Add swagger documentation
