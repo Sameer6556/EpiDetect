@@ -1,0 +1,406 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>EpiDetect | Clinical Seizure Analysis</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700&family=Sora:wght@400;600;700;800&family=Space+Grotesk:wght@400;600&display=swap" rel="stylesheet" />
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+  <link rel="stylesheet" href="css/style.css?v=4" />
+</head>
+<body>
+
+<!-- Main navigation header -->
+<header class="site-header">
+  <div class="header-content">
+    <div class="logo-group">
+      <h1 class="site-title" style="font-weight:800; letter-spacing:-0.5px; font-size:1.5rem">
+        Epi<span class="text-gradient-anim">Detect</span>
+      </h1>
+    </div>
+    <nav class="header-nav">
+      <a href="#analyze" class="nav-link active">Analyze</a>
+      <a href="#explain" class="nav-link">Explain</a>
+      <a href="#performance" class="nav-link">Performance</a>
+      <a href="#about" class="nav-link">About</a>
+    </nav>
+    <div class="api-status" id="apiStatus">
+      <span class="status-dot"></span>
+      <span class="status-text">Connecting…</span>
+    </div>
+  </div>
+</header>
+
+<main class="main-content" style="position:relative; z-index:1">
+  <div class="bg-orb" style="width:50vw; height:50vw; background:var(--primary-container); top:-10%; left:-10%"></div>
+
+  <!-- Dashboard section for running predictions -->
+  <section id="analyze" class="section" style="padding-top: 0">
+    <!-- Hero running wave animation -->
+    <div class="reveal" style="width:100%; height:120px; border-radius:var(--radius-xl); overflow:hidden; background:linear-gradient(135deg, var(--bg-surface), var(--bg-surface-alt)); margin-bottom:2rem; border:1px solid var(--border-ghost); display:flex; align-items:center; box-shadow:var(--shadow-premium);">
+      <canvas id="heroWave" style="width:100%; height:80px;"></canvas>
+    </div>
+    <div class="analyze-grid">
+      <!-- Input Panel -->
+      <div class="card card-hover input-panel">
+        <div class="card-header">
+          <span class="label-caps" style="color:var(--primary)">Input Source</span>
+          <h3>EEG Signal Analysis</h3>
+        </div>
+        
+        <div style="margin-bottom:1.5rem">
+          <label style="font-size:0.85rem;color:var(--text-muted);display:block;margin-bottom:0.5rem">Dataset Model</label>
+          <div style="width:100%;padding:0.75rem 1rem;border-radius:0.5rem;background:var(--bg-surface-high);color:var(--text-main);font-weight:600;font-size:0.95rem;display:flex;align-items:center;gap:0.75rem">
+            <span style="color:var(--primary);font-size:0.8rem">●</span> Bonn University (173.61 Hz)
+          </div>
+        </div>
+
+        <div class="upload-zone" id="uploadZone" onclick="document.getElementById('fileInput').click()">
+          <div style="font-size:2rem;margin-bottom:0.5rem">📁</div>
+          <strong>Drag & Drop CSV/TXT</strong>
+          <div style="font-size:0.85rem;margin-top:0.25rem">or click to browse local files</div>
+          <input type="file" id="fileInput" accept=".csv, .txt" hidden />
+        </div>
+
+        <div style="margin-top:2rem;border-top:1px solid var(--border-ghost);padding-top:1.5rem">
+          <span class="label-caps text-muted">Test Samples</span>
+          <div style="display:flex;gap:0.5rem;margin-top:0.75rem">
+            <button class="btn btn-outline" id="btnDemoNormal">Load Normal</button>
+            <button class="btn btn-outline" id="btnDemoSeizure" style="color:var(--danger);border-color:rgba(239,68,68,0.3)">Load Seizure</button>
+          </div>
+        </div>
+        
+        <button class="btn btn-primary" id="btnAnalyze" disabled style="margin-top:2rem">
+          Process Signal Sequence
+        </button>
+      </div>
+
+      <!-- Result Panel -->
+      <div class="card card-hover result-panel">
+        <div class="card-header" style="display:flex;justify-content:space-between;align-items:center">
+          <div>
+            <span class="label-caps" style="color:var(--secondary)">Output</span>
+            <h3>Diagnostic Prediction</h3>
+          </div>
+          <div class="ed-pill" id="chartTag" style="margin:0;font-family:var(--font-mono)">Waiting for input...</div>
+        </div>
+
+        <div id="resultDisplay" class="result-display">
+          <div style="height:100px;display:flex;align-items:center;color:var(--text-faint)">
+            Load an EEG signal to view prediction results.
+          </div>
+        </div>
+
+        <div id="confidenceSection" class="confidence-section" style="display:none">
+          <div class="conf-ring-wrapper">
+            <canvas id="confidenceRing" width="160" height="160"></canvas>
+          </div>
+          <div>
+            <h4 style="margin-bottom:0.5rem">Model Confidence</h4>
+            <p class="text-muted" style="max-width:300px">The ensemble network's certainty in its classification output based on the extracted signal features.</p>
+          </div>
+        </div>
+
+        <div id="chartWrapper" class="chart-container" style="display:none">
+          <canvas id="eegChart"></canvas>
+        </div>
+        
+        <div id="quickStats" style="display:none">
+            <!-- Hidden elements required by app.js -->
+            <span id="qPred"></span><span id="qProb"></span><span id="qConf"></span><span id="confValue"></span><span id="statAcc"><span></span></span><span id="statSens"><span></span></span><span id="statAUC"><span></span></span>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- Explainable AI (XAI) section to show why the model made its decision -->
+  <section id="explain" class="section">
+    <div style="margin-bottom:4rem;text-align:center">
+      <h2 style="font-size:3rem">Why this prediction?</h2>
+      <p class="text-muted" style="font-size:1.25rem">Understanding ensemble decisions through feature analysis.</p>
+    </div>
+
+    <!-- Per-Input SHAP Waterfall (THIS specific signal) -->
+    <div class="editorial-row stacked">
+      <div class="ed-text">
+        <span class="label-caps" style="color:var(--danger)">Per-Input Explanation</span>
+        <h3>Why this specific signal was classified</h3>
+        <p class="text-muted">A SHAP waterfall plot generated in real-time for the signal you just processed. Shows exactly which features pushed the prediction toward seizure or normal for <strong>this particular input</strong>.</p>
+        <div class="ed-pill">🔴 Live — computed per prediction</div>
+      </div>
+      <div class="ed-visual full-width">
+         <img id="waterfallImg" class="img-hover" src="" alt="Per-Input SHAP Waterfall" style="display:none" />
+         <div id="waterfallPlaceholder" class="text-faint">Process a signal to see per-input explanation</div>
+      </div>
+    </div>
+
+    <!-- SHAP Summary (Overall Model) -->
+    <div class="editorial-row stacked">
+      <div class="ed-text" style="border-left-color:var(--secondary)">
+        <span class="label-caps" style="color:var(--secondary)">Global Model — SHAP Summary</span>
+        <h3>How features impact predictions overall</h3>
+        <p class="text-muted">Feature impact across <strong>all test samples</strong> from training. Shows how high and low feature values influence the model's decisions in general.</p>
+        <div class="ed-pill">Beeswarm distribution across entire test set</div>
+      </div>
+      <div class="ed-visual full-width">
+         <img id="shapImg" class="img-hover" src="" alt="SHAP Beeswarm" style="display:none" />
+         <div id="shapPlaceholder" class="text-faint">SHAP Summary will render after processing</div>
+      </div>
+    </div>
+
+    <!-- Feature Importance (Overall Model) -->
+    <div class="editorial-row stacked">
+      <div class="ed-text">
+        <span class="label-caps">Global Model — Feature Importance</span>
+        <h3>Top contributors to the classification</h3>
+        <p class="text-muted">Which EEG biomarkers the model relies on most, averaged across the tree-based classifiers (RF, ExtraTrees, GradientBoosting, AdaBoost).</p>
+        <div class="ed-pill">Averaged across 4 tree-based models</div>
+      </div>
+      <div class="ed-visual full-width">
+         <img id="gradcamImg" class="img-hover" src="" alt="Feature Importance Chart" style="display:none" />
+         <div id="gradcamPlaceholder" class="text-faint">Feature Importance chart will render after processing</div>
+      </div>
+    </div>
+
+    <!-- Permutation Importance -->
+    <div class="editorial-row stacked">
+      <div class="ed-text" style="border-left-color:var(--primary)">
+        <span class="label-caps" style="color:var(--primary)">Global Model — Permutation Importance</span>
+        <h3>How much accuracy drops when a feature is shuffled</h3>
+        <p class="text-muted">Unlike tree-based importance, this method covers <strong>all 8 classifiers</strong> in the ensemble. It measures the actual accuracy loss when each feature's values are randomly permuted.</p>
+        <div class="ed-pill">Full ensemble (all 8 models)</div>
+      </div>
+      <div class="ed-visual full-width">
+         <img id="permImg" class="img-hover" src="" alt="Permutation Importance" style="display:none" />
+         <div id="permPlaceholder" class="text-faint">Permutation importance will render after processing</div>
+      </div>
+    </div>
+
+    <!-- SHAP Bar -->
+    <div class="editorial-row stacked">
+      <div class="ed-text" style="border-left-color:var(--danger)">
+        <span class="label-caps" style="color:var(--danger)">Global Model — SHAP Bar</span>
+        <h3>Average feature impact magnitude</h3>
+        <p class="text-muted">Mean absolute SHAP values across the test set, showing which features have the largest overall influence on predictions regardless of direction.</p>
+        <div class="ed-pill">Averaged across RF, ExtraTrees, GradientBoosting</div>
+      </div>
+      <div class="ed-visual full-width">
+         <img id="shapBarImg" class="img-hover" src="" alt="SHAP Bar Chart" style="display:none" />
+         <div id="shapBarPlaceholder" class="text-faint">SHAP bar chart will render after processing</div>
+      </div>
+    </div>
+  </section>
+
+  <!-- Evaluation metrics and overall model performance -->
+  <section id="performance" class="section">
+    <div style="margin-bottom:4rem">
+      <span class="label-caps" style="color:var(--primary)">Validation Metrics</span>
+      <h2 style="font-size:3rem">Model Performance</h2>
+    </div>
+
+    <div class="metrics-section">
+      <div class="metrics-nav">
+        <button class="mtab-btn active" data-mtab="bonn">Bonn University</button>
+      </div>
+      <div>
+        <div class="metrics-grid" id="metricsGrid">
+          <!-- Populated by JS -->
+        </div>
+        <div class="card" style="height:400px">
+          <h4 style="margin-bottom:1.5rem">Metric Distribution</h4>
+          <canvas id="metricsBarChart"></canvas>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- Project details and information -->
+  <section id="about" class="section">
+    
+    <!-- 1. Hero -->
+    <div class="about-hero">
+      <div class="about-hero-text">
+        <h1>About <span class="text-gradient-anim">EpiDetect</span></h1>
+        <p>Engineering a clinical-grade architecture for advanced seizure detection using high-fidelity EEG signal processing and ensemble intelligence.</p>
+      </div>
+      <div class="about-hero-img" style="background:#ffffff; position:relative; overflow:visible">
+        <!-- Slight gradient background for the brain to pop -->
+        <div style="position:absolute; inset:0; background:radial-gradient(circle at center, rgba(0,0,0,0.03) 0%, transparent 70%); border-radius:var(--radius-xl)"></div>
+        <img src="assets/brain_render.png" alt="3D Brain Render" class="float-anim" style="width:110%; height:auto; position:relative; z-index:2; filter:drop-shadow(0px 20px 30px rgba(0,0,0,0.08))" />
+      </div>
+    </div>
+
+    <!-- 2. Accuracy Pull -->
+    <div class="editorial-pull pull-grid reveal" style="margin-top:2rem; display:grid; grid-template-columns:1fr 1fr; gap:4rem; align-items:center;">
+      <div class="pull-left">
+        <h2 style="font-size:3rem; line-height:1.1; margin-bottom:1rem; letter-spacing:-0.03em;">99.4% accuracy on the<br>Bonn EEG dataset.</h2>
+        <p class="text-muted text-small" style="font-family:var(--font-mono)">10-fold cross-validation across 5 signal classes.</p>
+      </div>
+      <div class="pull-right">
+        <p class="text-muted" style="margin-bottom:2rem; font-size:1.1rem; line-height:1.8">EpiDetect is a B.Tech final year project that applies ensemble machine learning to classify epileptic and non−epileptic EEG signals from the Bonn University dataset. The pipeline combines signal preprocessing, 720 hand−engineered features, and SHAP−based explainability to make predictions that are both accurate and interpretable.</p>
+        <div class="pull-stats" style="display:flex; gap:4rem; border-top:1px solid var(--border-ghost); padding-top:2rem">
+          <div><h3 style="color:var(--primary); font-size:1.75rem; margin-bottom:0.25rem">720</h3><span class="label-caps text-muted">EEG FEATURES</span></div>
+          <div><h3 style="color:var(--primary); font-size:1.75rem; margin-bottom:0.25rem">500</h3><span class="label-caps text-muted">SIGNALS</span></div>
+          <div><h3 style="color:var(--primary); font-size:1.75rem; margin-bottom:0.25rem">5</h3><span class="label-caps text-muted">SIGNAL CLASSES</span></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- 3. Engine Architecture -->
+    <div class="architecture-row reveal" style="display:grid; grid-template-columns:1fr 1fr; gap:4rem; margin-bottom:6rem; margin-top:6rem; align-items:center">
+      <div class="engine-card" style="background:#f9f8fc; padding:4rem 2rem; border-radius:var(--radius-xl); text-align:center; position:relative; overflow:hidden">
+        <!-- subtle decor overlay -->
+        <div style="position:absolute; top:-50px; right:-50px; width:200px; height:200px; background:var(--secondary-container); opacity:0.5; border-radius:50%; filter:blur(40px)"></div>
+        <h3 style="margin-bottom:3rem; position:relative; z-index:2">Proprietary Ensemble Engine</h3>
+        
+        <div style="display:flex; flex-wrap:wrap; justify-content:center; gap:0.75rem; margin-bottom:2rem; position:relative; z-index:2">
+          <div style="background:white; padding:0.6rem 1.1rem; border-radius:8px; font-size:0.8rem; font-weight:600; color:var(--primary); box-shadow:0 4px 6px rgba(0,0,0,0.04)">Random Forest</div>
+          <div style="background:white; padding:0.6rem 1.1rem; border-radius:8px; font-size:0.8rem; font-weight:600; color:var(--primary); box-shadow:0 4px 6px rgba(0,0,0,0.04)">Extra Trees</div>
+          <div style="background:white; padding:0.6rem 1.1rem; border-radius:8px; font-size:0.8rem; font-weight:600; color:var(--primary); box-shadow:0 4px 6px rgba(0,0,0,0.04)">Hist. Gradient Boosting</div>
+          <div style="background:white; padding:0.6rem 1.1rem; border-radius:8px; font-size:0.8rem; font-weight:600; color:var(--primary); box-shadow:0 4px 6px rgba(0,0,0,0.04)">Gradient Boosting</div>
+          <div style="background:white; padding:0.6rem 1.1rem; border-radius:8px; font-size:0.8rem; font-weight:600; color:var(--primary); box-shadow:0 4px 6px rgba(0,0,0,0.04)">SVM</div>
+          <div style="background:white; padding:0.6rem 1.1rem; border-radius:8px; font-size:0.8rem; font-weight:600; color:var(--primary); box-shadow:0 4px 6px rgba(0,0,0,0.04)">MLP Neural Net</div>
+          <div style="background:white; padding:0.6rem 1.1rem; border-radius:8px; font-size:0.8rem; font-weight:600; color:var(--primary); box-shadow:0 4px 6px rgba(0,0,0,0.04)">AdaBoost</div>
+          <div style="background:white; padding:0.6rem 1.1rem; border-radius:8px; font-size:0.8rem; font-weight:600; color:var(--primary); box-shadow:0 4px 6px rgba(0,0,0,0.04)">KNN</div>
+        </div>
+        
+        <div style="margin-bottom:2rem; color:var(--text-faint)">↓</div>
+        
+        <div style="background:var(--secondary); color:white; padding:0.5rem 1.5rem; border-radius:99px; display:inline-block; font-size:0.75rem; font-weight:800; letter-spacing:1px; margin-bottom:2rem">SOFT VOTING</div>
+        
+        <div style="margin-bottom:2rem; color:var(--text-faint)">↓</div>
+        
+        <div style="display:inline-block; background:var(--primary); color:white; padding:1.25rem 2.5rem; border-radius:12px; font-weight:600; box-shadow:0 10px 20px rgba(37, 99, 235, 0.2)">Final Classification</div>
+      </div>
+      <div>
+        <h4 style="color:var(--primary); margin-bottom:1rem; font-size:1.25rem">Algorithm Refinement</h4>
+        <p class="text-muted" style="margin-bottom:3rem; font-size:1rem; line-height:1.7">To ensure high generalization, the ensemble uses multi-seed averaging across 5 unique seeds, mitigating variance and preventing overfitting on patient-specific patterns.</p>
+        
+        <h4 style="color:var(--secondary); margin-bottom:1rem; font-size:1.25rem">Advanced Selection</h4>
+        <p class="text-muted" style="font-size:1rem; line-height:1.7">Feature selection is performed via a Union of Mutual Information (MI) and F-classif ANOVA scores, prioritizing features with high discriminative power for ictal states.</p>
+      </div>
+    </div>
+
+    <!-- 4. Dataset Table -->
+    <div class="reveal" style="margin-bottom:8rem">
+      <div class="dataset-header" style="display:flex; justify-content:space-between; align-items:flex-end; margin-bottom:2.5rem">
+        <div>
+          <h2>Bonn University EEG Dataset</h2>
+          <p class="text-muted" style="margin-top:0.5rem">Standardized clinical recordings for seizure research</p>
+        </div>
+        <div class="dataset-features" style="display:flex; gap:1.5rem">
+          <div style="background:var(--bg-surface-high); padding:0.75rem 1.25rem; border-radius:8px; text-align:center"><div class="label-caps text-muted" style="margin-bottom:0.25rem">FREQUENCY</div><strong>173.61 Hz</strong></div>
+          <div style="background:var(--bg-surface-high); padding:0.75rem 1.25rem; border-radius:8px; text-align:center"><div class="label-caps text-muted" style="margin-bottom:0.25rem">SIGNALS</div><strong>500 Total</strong></div>
+        </div>
+      </div>
+      
+      <div style="background:var(--bg-surface); border-radius:1.5rem; padding:1.5rem; box-shadow:0 4px 20px rgba(0,0,0,0.03)">
+        <table style="width:100%; text-align:left; border-collapse:collapse; font-size:0.95rem">
+          <thead>
+            <tr style="border-bottom:1px solid var(--border-ghost)">
+              <th style="padding:1.5rem; color:var(--text-main); font-weight:700">Subset</th>
+              <th style="padding:1.5rem; color:var(--text-main); font-weight:700">Source / Electrode Position</th>
+              <th style="padding:1.5rem; color:var(--text-main); font-weight:700">State</th>
+              <th style="padding:1.5rem; color:var(--text-main); font-weight:700">Label</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr style="border-bottom:1px solid var(--border-ghost)">
+              <td style="padding:1.5rem; color:var(--primary); font-weight:700">Set A</td>
+              <td style="padding:1.5rem; color:var(--text-muted)">Scalp (Surface) - Healthy Eyes Open</td>
+              <td style="padding:1.5rem"><span style="background:var(--bg-surface-high); padding:0.4rem 1rem; border-radius:99px; font-size:0.75rem; font-weight:600">Normal</span></td>
+              <td style="padding:1.5rem; font-weight:700">Healthy</td>
+            </tr>
+            <tr style="border-bottom:1px solid var(--border-ghost)">
+              <td style="padding:1.5rem; color:var(--primary); font-weight:700">Set B</td>
+              <td style="padding:1.5rem; color:var(--text-muted)">Scalp (Surface) - Healthy Eyes Closed</td>
+              <td style="padding:1.5rem"><span style="background:var(--bg-surface-high); padding:0.4rem 1rem; border-radius:99px; font-size:0.75rem; font-weight:600">Normal</span></td>
+              <td style="padding:1.5rem; font-weight:700">Healthy</td>
+            </tr>
+            <tr style="border-bottom:1px solid var(--border-ghost)">
+              <td style="padding:1.5rem; color:var(--secondary); font-weight:700">Set C</td>
+              <td style="padding:1.5rem; color:var(--text-muted)">Intracranial (Hippocampus) - Inter-Ictal</td>
+              <td style="padding:1.5rem"><span style="background:var(--secondary-container); color:var(--secondary); padding:0.4rem 1rem; border-radius:99px; font-size:0.75rem; font-weight:600">Pre-Seizure</span></td>
+              <td style="padding:1.5rem; font-weight:700; color:var(--secondary)">Epileptic</td>
+            </tr>
+            <tr style="border-bottom:1px solid var(--border-ghost)">
+              <td style="padding:1.5rem; color:var(--secondary); font-weight:700">Set D</td>
+              <td style="padding:1.5rem; color:var(--text-muted)">Intracranial (Epileptogenic Zone) - Inter-Ictal</td>
+              <td style="padding:1.5rem"><span style="background:var(--secondary-container); color:var(--secondary); padding:0.4rem 1rem; border-radius:99px; font-size:0.75rem; font-weight:600">Pre-Seizure</span></td>
+              <td style="padding:1.5rem; font-weight:700; color:var(--secondary)">Epileptic</td>
+            </tr>
+            <tr>
+              <td style="padding:1.5rem; color:var(--danger); font-weight:700">Set E</td>
+              <td style="padding:1.5rem; color:var(--text-muted)">Intracranial (Epileptogenic Zone) - Ictal Activity</td>
+              <td style="padding:1.5rem"><span style="background:rgba(239, 68, 68, 0.15); color:var(--danger); padding:0.4rem 1rem; border-radius:99px; font-size:0.75rem; font-weight:600">SEIZURE</span></td>
+              <td style="padding:1.5rem; font-weight:700; color:var(--danger)">Ictal</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+    <!-- 5. Features Grid -->
+    <div class="reveal">
+      <h2 style="margin-bottom:2.5rem; font-size:2rem">Engineered Features (720 Total)</h2>
+      <div class="features-grid" style="display:grid; grid-template-columns:1fr 1fr; gap:2rem">
+        
+        <div class="card card-hover delay-1 reveal">
+          <h4 style="display:flex; align-items:center; gap:0.75rem; margin-bottom:2rem; font-size:1.2rem">
+            <span style="background:var(--primary-container); color:var(--primary); width:32px; height:32px; display:flex; align-items:center; justify-content:center; border-radius:8px; font-size:1rem">∿</span> 
+            Spectral (PSD) — 22 features
+          </h4>
+          <div style="display:flex; justify-content:space-between; font-size:0.9rem; color:var(--text-muted); margin-bottom:1.25rem; border-bottom:1px dashed var(--border-ghost); padding-bottom:0.5rem"><span>Delta, Theta, Alpha, Beta, Gamma Power</span><span style="color:var(--primary); font-weight:600">Bands</span></div>
+          <div style="display:flex; justify-content:space-between; font-size:0.9rem; color:var(--text-muted); margin-bottom:1.25rem; border-bottom:1px dashed var(--border-ghost); padding-bottom:0.5rem"><span>Gamma Band Power (30–85 Hz)</span><span style="color:var(--primary); font-weight:600">Core</span></div>
+          <div style="display:flex; justify-content:space-between; font-size:0.9rem; color:var(--text-muted); margin-bottom:1.25rem; border-bottom:1px dashed var(--border-ghost); padding-bottom:0.5rem"><span>Theta/Alpha &amp; Delta/Beta Ratio</span><span style="color:var(--primary); font-weight:600">Derived</span></div>
+          <div style="display:flex; justify-content:space-between; font-size:0.9rem; color:var(--text-muted)"><span>Spectral Centroid, Entropy, Edge 85/95%</span><span style="color:var(--primary); font-weight:600">Derived</span></div>
+        </div>
+
+        <div class="card card-hover delay-2 reveal">
+          <h4 style="display:flex; align-items:center; gap:0.75rem; margin-bottom:2rem; font-size:1.2rem">
+            <span style="background:var(--bg-surface-high); color:var(--text-main); width:32px; height:32px; display:flex; align-items:center; justify-content:center; border-radius:8px; font-size:1rem">📊</span> 
+            Time-Domain — 17 features
+          </h4>
+          <div style="display:flex; justify-content:space-between; font-size:0.9rem; color:var(--text-muted); margin-bottom:1.25rem; border-bottom:1px dashed var(--border-ghost); padding-bottom:0.5rem"><span>Mean, Std, Variance, RMS</span><span style="font-weight:600; color:var(--text-main)">Stats</span></div>
+          <div style="display:flex; justify-content:space-between; font-size:0.9rem; color:var(--text-muted); margin-bottom:1.25rem; border-bottom:1px dashed var(--border-ghost); padding-bottom:0.5rem"><span>Skewness &amp; Kurtosis</span><span style="font-weight:600; color:var(--text-main)">Shape</span></div>
+          <div style="display:flex; justify-content:space-between; font-size:0.9rem; color:var(--text-muted); margin-bottom:1.25rem; border-bottom:1px dashed var(--border-ghost); padding-bottom:0.5rem"><span>Hjorth Mobility &amp; Complexity</span><span style="font-weight:600; color:var(--text-main)">Hjorth</span></div>
+          <div style="display:flex; justify-content:space-between; font-size:0.9rem; color:var(--text-muted)"><span>Zero-Cross Rate, Line Length, Teager Energy</span><span style="font-weight:600; color:var(--text-main)">Activity</span></div>
+        </div>
+
+        <div class="card card-hover delay-3 reveal">
+          <h4 style="display:flex; align-items:center; gap:0.75rem; margin-bottom:2rem; font-size:1.2rem">
+            <span style="background:var(--secondary-container); color:var(--secondary); width:32px; height:32px; display:flex; align-items:center; justify-content:center; border-radius:8px; font-size:1rem">◿</span>
+            Wavelet (DWT db4) — 75 features
+          </h4>
+          <div style="display:flex; justify-content:space-between; font-size:0.9rem; color:var(--text-muted); margin-bottom:1.25rem; border-bottom:1px dashed var(--border-ghost); padding-bottom:0.5rem"><span>5 sub-bands: A4, D4, D3, D2, D1</span><span style="color:var(--secondary); font-weight:600">Multi-Res</span></div>
+          <div style="display:flex; justify-content:space-between; font-size:0.9rem; color:var(--text-muted); margin-bottom:1.25rem; border-bottom:1px dashed var(--border-ghost); padding-bottom:0.5rem"><span>Energy, RMS, Variance per band</span><span style="color:var(--secondary); font-weight:600">Energy</span></div>
+          <div style="display:flex; justify-content:space-between; font-size:0.9rem; color:var(--text-muted); margin-bottom:1.25rem; border-bottom:1px dashed var(--border-ghost); padding-bottom:0.5rem"><span>Wavelet Entropy per band</span><span style="color:var(--secondary); font-weight:600">Entropy</span></div>
+          <div style="display:flex; justify-content:space-between; font-size:0.9rem; color:var(--text-muted)"><span>Kurtosis, Skewness, Zero-Cross per band</span><span style="color:var(--secondary); font-weight:600">Shape</span></div>
+        </div>
+
+        <div class="card card-hover delay-4 reveal">
+          <h4 style="display:flex; align-items:center; gap:0.75rem; margin-bottom:2rem; font-size:1.2rem">
+            <span style="background:var(--secondary-container); color:var(--secondary); width:32px; height:32px; display:flex; align-items:center; justify-content:center; border-radius:8px; font-size:1rem">∞</span>
+            Non-Linear Complexity — 6 features
+          </h4>
+          <div style="display:flex; justify-content:space-between; font-size:0.9rem; color:var(--text-muted); margin-bottom:1.25rem; border-bottom:1px dashed var(--border-ghost); padding-bottom:0.5rem"><span>Sample Entropy</span><span style="color:var(--secondary); font-weight:600">Entropy</span></div>
+          <div style="display:flex; justify-content:space-between; font-size:0.9rem; color:var(--text-muted); margin-bottom:1.25rem; border-bottom:1px dashed var(--border-ghost); padding-bottom:0.5rem"><span>Permutation Entropy (order 3 &amp; 4)</span><span style="color:var(--secondary); font-weight:600">Entropy</span></div>
+          <div style="display:flex; justify-content:space-between; font-size:0.9rem; color:var(--text-muted); margin-bottom:1.25rem; border-bottom:1px dashed var(--border-ghost); padding-bottom:0.5rem"><span>Higuchi Fractal Dimension</span><span style="color:var(--secondary); font-weight:600">Fractal</span></div>
+          <div style="display:flex; justify-content:space-between; font-size:0.9rem; color:var(--text-muted)"><span>DFA (Detrended Fluctuation Analysis)</span><span style="color:var(--secondary); font-weight:600">Scaling</span></div>
+        </div>
+
+      </div>
+    </div>
+  </section>
+
+</main>
+
+<div class="loading-overlay" id="loadingOverlay">
+  <div class="spinner"></div>
+  <div id="loadingText" style="font-weight:600;font-size:1.1rem;color:var(--text-main)">Processing...</div>
+</div>
+
+<script src="js/app.js?v=2"></script>
+</body>
+</html>
