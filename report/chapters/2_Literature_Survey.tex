@@ -1,0 +1,93 @@
+
+This chapter examines the existing body of research on automated seizure detection from EEG signals. The goal is to understand the techniques that have been tried, identify what works and what does not, and position this project within the broader landscape.
+
+\section{Existing Approaches to Seizure Detection}
+
+Automated EEG-based seizure detection has been an active research area for over two decades. Early methods relied on hand-crafted rules and threshold-based detectors, which worked reasonably well in controlled settings but struggled with patient-to-patient variability and noise~\citep{adeli2003analysis}. The field then shifted toward machine learning, where the standard pipeline involves three stages: signal preprocessing, feature extraction, and classification.
+
+Most modern systems follow this three-stage pattern, but they differ significantly in how they handle each stage, particularly in the choice of features and classifiers. These choices have a direct impact on accuracy, generalization, and clinical utility.
+
+\section{Feature Extraction Techniques}
+
+The features extracted from an EEG signal determine how much useful information the classifier has to work with. Prior works have explored features from several different analysis domains.
+
+\subsection{Wavelet-Based Features}
+
+The discrete wavelet transform (DWT) has been the most widely used technique in this domain. It decomposes a signal into approximation and detail coefficients at multiple resolution levels, capturing both low-frequency trends and high-frequency transients. Adeli et al.~\citep{adeli2003analysis} were among the first to demonstrate that wavelet coefficients reveal clinically meaningful differences between seizure and non-seizure EEG. Since then, wavelets have appeared in nearly every competitive seizure detection system.
+
+Chanu et al.~\citep{chanu2023automated} used Daubechies-4 (DB4) wavelet coefficients as input to an optimized neural network, achieving 99.2\% accuracy on the Bonn dataset. Their work confirmed that DWT-based features, when paired with a well-tuned classifier, can produce strong results. However, they did not combine wavelets with features from other domains. Similarly, Wani et al.~\citep{wani2019detection} combined wavelet transform features with an artificial neural network, further confirming that DWT decomposition reliably distinguishes seizure from non-seizure EEG segments.
+
+\subsection{Time-Domain Features}
+
+Time-domain features capture the statistical and morphological properties of the raw signal. Common examples include mean, variance, skewness, kurtosis, zero-crossing rate, Hjorth parameters~\citep{hjorth1970eeg}, and Teager energy~\citep{kaiser1990simple}. These features are computationally cheap and provide a complementary view of the signal that wavelets alone may miss. Guo et al.~\citep{guo2010automatic} showed that line length, a simple time-domain feature, can serve as an effective seizure marker when combined with artificial neural networks.
+
+\subsection{Frequency-Domain Features}
+
+Frequency-domain analysis, typically performed via the Fast Fourier Transform (FFT), reveals the power distribution across different EEG bands: delta (0.5--4~Hz), theta (4--8~Hz), alpha (8--13~Hz), beta (13--30~Hz), and gamma (30--85~Hz). Seizure episodes are known to produce elevated power in certain bands and altered ratios between bands~\citep{subasi2019epileptic}. Spectral entropy, peak frequency, and spectral edge frequencies are commonly used descriptors. Tzallas et al.~\citep{tzallas2009epileptic} demonstrated the value of time--frequency analysis for EEG-based seizure detection, comparing several joint time--frequency representations on the Bonn dataset and showing that band-power features carry strong discriminative information for ictal versus interictal segments.
+
+\subsection{Nonlinear Features}
+
+Nonlinear features quantify the complexity and regularity of a signal. Sample entropy, permutation entropy, Higuchi fractal dimension, and Hurst exponent are popular choices. Hussain et al.~\citep{hussain2019epileptic} employed permutation fuzzy entropy alongside machine learning classifiers and reported that combining nonlinear features with traditional ones yielded better discrimination between seizure and non-seizure signals.
+
+\section{Classification Methods}
+
+A range of classifiers have been applied to the seizure detection problem. The choice of classifier often depends on the size and nature of the feature set.
+
+\subsection{Traditional Machine Learning}
+
+Support Vector Machines (SVMs) and Random Forests have been among the most popular choices. Subasi et al.~\citep{subasi2019epileptic} used a hybrid SVM with wavelet features and achieved competitive results. Al-Ghayab et al.~\citep{alghayab2019epileptic} applied optimized machine learning approaches with feature selection and reached 99\% accuracy on binary Bonn dataset tasks. Kabir and Zhang~\citep{kabir2016optimum} explored logistic model trees, while Jaiswal and Banka~\citep{jaiswal2018epileptic} investigated multiple machine learning classifiers for EEG-based detection.
+
+\subsection{Deep Learning}
+
+Acharya et al.~\citep{acharya2018deep} proposed a deep convolutional neural network that operates directly on raw EEG signals, bypassing manual feature extraction. Their model achieved strong results but required significant computational resources and offered limited interpretability. Zhao et al.~\citep{zhao2020novel} proposed a 1D-CNN architecture for seizure detection on the Bonn dataset. Chen et al.~\citep{chen2023epileptic} combined DWT-based entropy features (approximate entropy, fuzzy entropy, and sample entropy) with a Random Forest selector and a CNN classifier, achieving high accuracy across multiple binary classification tasks on the Bonn dataset. However, deep learning models are generally opaque and provide little insight into the reasoning behind their decisions.
+
+\subsection{Ensemble Methods}
+
+Ensemble classifiers combine the predictions of multiple individual models to reduce variance and improve generalization. While ensembles of two or three models have been explored in the seizure detection literature~\citep{subasi2019epileptic}, the use of larger, more diverse ensembles with formal voting strategies has received less attention. This project contributes to this gap by combining eight classifiers through soft voting.
+
+\section{Explainability in Medical AI}
+
+The need for interpretable machine learning in healthcare has been widely recognized. Lundberg and Lee~\citep{lundberg2017unified} introduced SHAP (SHapley Additive exPlanations), a unified framework for feature attribution based on game-theoretic Shapley values. SHAP assigns each feature a contribution score for every individual prediction, making it possible to explain not just the model's overall behaviour but also the reasoning behind each specific output. Despite its relevance, SHAP-based explainability has rarely been integrated into EEG seizure detection systems.
+
+\section{Comparison of Related Works}
+
+Table~\ref{tab:litcomp} summarises the key characteristics of several related studies on EEG-based seizure detection using the Bonn University dataset.
+
+\begin{table}[htbp]
+\centering
+\caption{Comparison of related works on EEG-based seizure detection.}
+\label{tab:litcomp}
+\renewcommand{\arraystretch}{1.3}
+\resizebox{\textwidth}{!}{
+\begin{tabular}{|p{3.5cm}|p{2.5cm}|p{3.5cm}|p{2cm}|p{1.8cm}|}
+\hline
+\textbf{Study} & \textbf{Features} & \textbf{Classifier} & \textbf{Accuracy} & \textbf{Dataset} \\
+\hline
+Guo et al. (2010)~\citep{guo2010automatic} & Line length & ANN & 95.0\% & Bonn \\
+\hline
+Subasi et al. (2019)~\citep{subasi2019epileptic} & DWT & SVM (hybrid) & 98.5\% & Bonn \\
+\hline
+Hussain et al. (2019)~\citep{hussain2019epileptic} & Permutation fuzzy entropy & Multiple ML & 98.7\% & Bonn \\
+\hline
+Chanu et al. (2023)~\citep{chanu2023automated} & DWT & SONN + MLP-GA & 99.2\% & Bonn \\
+\hline
+Chen et al. (2023)~\citep{chen2023epileptic} & DWT + Non-linear & RF + CNN & 98.47\%$^\dagger$ & Bonn \\
+\hline
+\multicolumn{5}{p{17cm}}{\small $^\dagger$ Accuracy for the ABCD-E (non-seizure vs.\ seizure) classification task, which matches the setup used in this project. Chen et al.\ reported 99.9\% for the simpler C-E (interictal vs.\ ictal) binary task.} \\
+\end{tabular}
+}
+\end{table}
+
+\section{Identified Gaps and Conclusion of Survey}
+
+Based on the survey, the following gaps were identified that this project addresses:
+
+\begin{enumerate}
+    \item \textbf{Limited feature diversity:} Most prior works rely on one or two feature domains. A broader feature set covering four domains (wavelet, time, frequency, nonlinear) captures more facets of the signal.
+
+    \item \textbf{Single-model classification:} Dependence on a single classifier makes the system vulnerable to overfitting and poor generalization. An ensemble of diverse models is more robust.
+
+    \item \textbf{Absence of explainability:} None of the surveyed systems integrate post-hoc explanations into their pipeline. SHAP-based attribution fills this gap by making each prediction transparent and verifiable.
+\end{enumerate}
+
+The literature shows steady progress in seizure detection, but explainability remains an afterthought, feature engineering tends to single domains, and most systems use one classifier. This project addresses all three gaps.

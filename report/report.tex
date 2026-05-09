@@ -1,0 +1,168 @@
+\documentclass[a4paper, 11pt, oneside]{report}
+
+\newcommand{\plogo}{\fbox{$\mathcal{PL}$}}
+\usepackage{graphicx}
+\usepackage{graphics}
+\usepackage[utf8]{inputenc}
+\usepackage{float}
+\usepackage{placeins}
+\usepackage[table,xcdraw]{xcolor}
+\usepackage[T1]{fontenc}
+\usepackage{lmodern}
+\usepackage{subcaption}
+\usepackage{longtable}
+\usepackage[nottoc]{tocbibind}
+\usepackage{url}
+\usepackage{hyperref}
+% \usepackage{doi}  % removed: DOIs are kept in .bib for record-keeping but not displayed in printed bibliography
+\usepackage{amsmath}
+\usepackage{natbib}
+\usepackage[ruled,linesnumbered,vlined]{algorithm2e}
+\usepackage{booktabs}
+\usepackage{multirow}
+\usepackage{enumitem}
+\usepackage{array}
+\usepackage{caption}
+\usepackage{pdflscape}
+
+\begin{document}
+	\begin{titlepage}
+
+		\centering
+
+		\vspace*{\baselineskip}
+
+		\vspace{0.75\baselineskip}
+
+		{\LARGE Epileptic Seizure Detection Using Ensemble\\Machine Learning with Explainable AI}
+
+		\vspace{0.75\baselineskip}
+
+		\vspace{2\baselineskip}
+
+		A report submitted for the course named Project - I (CS3201)
+
+		\vspace*{7\baselineskip}
+
+		Submitted By
+
+		\vspace{0.5\baselineskip}
+
+		{\scshape\Large Sameer Singh \\ SEMESTER - VI \\ 230101096}
+
+		\vspace{0.5\baselineskip}
+
+		Supervised By
+
+		\vspace{0.5\baselineskip}
+
+		{\scshape\Large Dr Khoirom Motilal Singh }
+
+		\vspace{0.5\baselineskip}
+
+		\vfill
+
+		\begin{center}
+			\includegraphics[width=5cm]{images/iiit_manipur.png}
+		\end{center}
+
+	{\scshape\small Department of Computer Science and Engineering\\ Indian Institute of Information Technology Senapati, Manipur \\ April, 2026}
+
+\end{titlepage}
+\pagestyle{plain}
+
+%----------------------------------------------------------------------------------------
+
+\begin{center}
+   { \LARGE \textbf{Declaration}}
+\end{center}
+In this submission, I have expressed my idea in my own words, and I have adequately cited and referenced any ideas or words that were taken from another source. I also declare that I adhere to all principles of academic honesty and integrity and that I have not misrepresented or falsified any ideas, data, facts, or sources in this submission. If any violation of the above is made, I understand that the institute may take disciplinary action. Such a violation may also engender disciplinary action from the sources which were not properly cited or permission not taken when needed.
+
+\vspace{1cm}\hspace{8cm} Sameer Singh \\
+\vspace{1cm}\hspace{9cm} 230101096 \\
+\vspace{1cm} DATE: \underline{\hspace{4cm}}
+
+\newpage
+
+\begin{center}
+	\includegraphics[scale=0.2]{images/iiit_manipur.png}\\[0.2cm]
+	\begin{tabular}{l}
+		Department of Computer Science and Engineering \\
+		Indian Institute of Information Technology Senapati, Manipur \\
+	\end{tabular}
+	\par\noindent\rule{\textwidth}{0.4pt}
+	Khoirom Motilal Singh
+	\hspace*{\fill} Email: \href{mailto:motilal@iiitmanipur.ac.in}{motilal@iiitmanipur.ac.in}\\
+	Assistant Professor, CSE, IIIT Manipur
+	\hspace*{0pt}\hfill Contact No: +91 70852 42211\\[1cm]
+	{\Huge \textbf{\emph{To Whom It May Concern}}}\\[1cm]
+	\large{This is to certify that the project report
+		entitled \textbf{``Epileptic Seizure Detection Using Ensemble Machine Learning with Explainable AI'',} submitted to the department of Computer Science and Engineering, Indian Institute of Information Technology Senapati, Manipur in partial fulfilment for the award of degree of Bachelor of Technology in Computer Science and Engineering is a record of bonafide work carried out by \textbf{Sameer Singh} bearing roll number 230101096.}\\[1cm]
+	\hspace*{2.6in}\large{Signature of the Supervisor}\\[0.3cm]
+	\hspace*{2.5in}\textbf{(Khoirom Motilal Singh)}\\[0.6cm]
+\end{center}
+
+\noindent Signature of the Examiner 1 ............................\\[0.5cm]
+\noindent Signature of the Examiner 2 ............................\\[0.5cm]
+\noindent Signature of the Examiner 3 ............................\\[0.5cm]
+\noindent Signature of the Examiner 4 ............................
+
+\newpage
+\begin{center}
+    {\LARGE \textbf{Abstract}}
+\end{center}
+\vspace{0.5cm}
+
+\textbf{Epileptic seizure detection} from electroencephalogram (EEG) signals is a challenging problem in biomedical signal processing. Manual inspection of EEG recordings is time-consuming, subjective, and constrained by the availability of trained neurologists. Automated machine learning approaches offer a reliable alternative, but most existing systems rely on narrow feature sets, single classifiers, and provide no transparency in their decisions.
+
+This project introduces \textbf{EpiDetect}, an automated seizure detection pipeline built on the publicly available Bonn University EEG dataset~\citep{andrzejak2001indications}. Raw single-channel signals are preprocessed using a fourth-order Butterworth bandpass filter (0.5--85~Hz) and z-score normalization. Each signal is divided into 16 equal segments, from which \textbf{720 features} are extracted across four complementary domains: discrete wavelet transform coefficients (Daubechies-4, four levels), time-domain statistics including Hjorth parameters and Teager energy, frequency-domain band powers, and nonlinear complexity measures such as sample entropy, permutation entropy, detrended fluctuation analysis, and Higuchi fractal dimension. A union-based \textbf{feature selection} strategy combining mutual information and ANOVA F-classification retains the most discriminative subset.
+
+Classification is performed by a \textbf{soft-voting ensemble} of eight diverse classifiers, namely Random Forest, Extra Trees, Histogram Gradient Boosting, Support Vector Machine, Multilayer Perceptron, Gradient Boosting, AdaBoost, and K-Nearest Neighbours, trained with five random seeds to stabilize predictions. Under \textbf{10-fold stratified cross-validation}, the system achieves 99.40\% accuracy, 98.00\% recall, and 99.92\% AUC-ROC, with only three misclassifications out of 500 signals. \textbf{SHAP-based explainability} is integrated to make every prediction transparent, producing global feature importance rankings, beeswarm summary plots, and permutation importance analysis. The pipeline is served through a Flask REST API with a web dashboard for signal upload, prediction display, and explanation inspection.
+
+\pagebreak
+
+        \begin{center}
+            { \LARGE \textbf{Acknowledgement}}
+        \end{center}
+	\vspace{2cm}
+
+I am grateful to my project supervisor, \textbf{Dr.~Khoirom Motilal Singh}, Assistant Professor, Department of Computer Science and Engineering, IIIT Senapati, Manipur, for his constant guidance, constructive feedback, and encouragement throughout the development of this project. His direction was instrumental in shaping the methodology and ensuring the rigour of the work.
+
+I wish to acknowledge \textbf{Andrzejak et al.} for making the Bonn University EEG dataset publicly available, which formed the experimental foundation of this project. I am also thankful to \textbf{Chanu et al.} and \textbf{Chen et al.} for their published work, which informed several design decisions in this project.
+
+I would also like to thank my peers and classmates for their valuable discussions and insights, which helped refine my understanding at various stages of this work.
+
+	\vspace{1cm}
+
+	\hspace{9cm}Sameer Singh\\
+	\hspace{9cm}230101096
+
+	\newpage
+	\tableofcontents
+	\listoffigures
+        \listoftables
+	\chapter{Introduction}
+	\input{chapters/1_Introduction}
+        \chapter{Literature Survey}
+        \input{chapters/2_Literature_Survey}
+        \chapter{Requirement Engineering}
+        \input{chapters/3_Requirement}
+        \chapter{System Design}
+        \input{chapters/4_System_Design}
+        \chapter{Implementation}
+        \input{chapters/5_Implementation}
+        \chapter{Results and Analysis}
+        \input{chapters/6_Results}
+        \chapter{Conclusion and Future Scope}
+        \input{chapters/7_Conclusion}
+
+        \bibliographystyle{unsrt}
+        \bibliography{report}
+
+
+
+
+
+
+
+\end{document}
