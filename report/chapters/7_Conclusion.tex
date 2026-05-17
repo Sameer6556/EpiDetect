@@ -1,0 +1,62 @@
+
+\section{Summary of Work}
+
+This project set out with a clear goal: to build an epileptic seizure detection system that is not only accurate but also transparent in its reasoning. Over the course of four months, the following work was completed.
+
+A complete end-to-end pipeline was designed and implemented for classifying single-channel EEG signals from the Bonn University dataset. Raw signals pass through a bandpass filter and z-score normalization before entering a multi-domain feature extraction stage that computes 720 features per signal across four complementary domains: discrete wavelet transform, time-domain statistics, frequency-domain band powers, and nonlinear complexity measures. The signal is segmented into 16 parts, features are computed at the segment level, and the results are aggregated with six statistics.
+
+A union-based feature selection strategy combining mutual information and ANOVA F-classification identifies the most discriminative features from this high-dimensional representation. Classification is handled by a soft-voting ensemble of eight diverse models, namely Random Forest, Extra Trees, Histogram Gradient Boosting, Gradient Boosting, AdaBoost, SVM, MLP, and KNN, trained with five random seeds to stabilize predictions.
+
+Under 10-fold stratified cross-validation, the system achieved 99.40\% accuracy, 98.00\% recall, and 99.92\% AUC-ROC, with only three misclassifications across all 500 signals. These results are competitive with or exceed most published methods on the same dataset, while offering an interpretability advantage that prior work has not addressed.
+
+SHAP-based explanations were integrated to provide model transparency. At the global level, feature importance rankings and SHAP summary plots reveal which EEG biomarkers the model relies on most heavily. Permutation importance analysis, computed across the full eight-classifier ensemble, confirms which features are genuinely critical to the model's performance. This transparency allows a clinician to verify the model's reasoning before acting on its output.
+
+The trained model is served through a Flask REST API with endpoints for health checking, signal prediction, file upload, and explanation plot retrieval. A web dashboard built with vanilla HTML, CSS, and JavaScript provides an accessible interface for uploading EEG signals, viewing predictions with confidence scores, and inspecting SHAP explanations.
+
+\section{Contributions}
+
+The key contributions of this work can be summarized as follows:
+
+\begin{enumerate}
+    \item \textbf{Comprehensive multi-domain feature engineering:} A 720-feature representation spanning four signal analysis domains, providing a broader characterization of EEG signals than the wavelet-only approach used in most prior work.
+
+    \item \textbf{Union-based feature selection:} A dual-selector strategy that combines Mutual Information and ANOVA F-classification scores, retaining any feature ranked important by either method. This produces a broader and more robust discriminative subset than a single-selector approach, without discarding features that one method may undervalue.
+
+    \item \textbf{Diverse ensemble classification:} An eight-classifier soft-voting ensemble with multi-seed training, combining the strengths of bagging, boosting, kernel, neural network, and instance-based methods.
+    
+    \item \textbf{Integrated explainability:} SHAP-based attribution at both global and per-input levels, addressing the black-box problem that limits clinical adoption of automated seizure detection systems.
+    
+    \item \textbf{Deployable system:} A complete web-accessible deployment with a REST API and interactive dashboard, bridging the gap between research prototype and usable tool.
+\end{enumerate}
+
+\section{Limitations}
+
+While the results are strong, several limitations should be acknowledged:
+
+\begin{enumerate}
+    \item \textbf{Single dataset:} All experiments are conducted on the Bonn dataset, which, though widely used, consists of only 500 single-channel recordings. Validation on larger, multi-channel clinical datasets would strengthen confidence in the system's generalizability.
+    
+    \item \textbf{Binary classification:} The current implementation treats the problem as binary (seizure vs. non-seizure). A multi-class extension that distinguishes between healthy, inter-ictal, and ictal states would be clinically more useful.
+    
+    \item \textbf{Offline processing:} The system processes complete, pre-recorded signals. It does not support real-time streaming EEG, which would be necessary for continuous monitoring applications.
+    
+    \item \textbf{No patient-level splitting:} Cross-validation currently splits by signal rather than by patient, which could allow subtle patient-specific patterns to leak between training and test folds.
+\end{enumerate}
+
+\section{Future Scope}
+
+Several directions could extend and strengthen this work:
+
+\begin{enumerate}
+    \item \textbf{Multi-channel EEG support:} Extending the pipeline to handle multi-channel recordings (e.g., 10-20 system) would make it applicable to standard clinical EEG setups.
+    
+    \item \textbf{Multi-class classification:} Distinguishing between healthy, pre-seizure (inter-ictal), and seizure (ictal) states would provide finer-grained diagnostic information.
+    
+    \item \textbf{Real-time streaming:} Adapting the system to process EEG data in real time through windowed analysis would enable continuous monitoring in ICU and ambulatory settings.
+    
+    \item \textbf{Deep learning integration:} Combining the hand-engineered feature set with learned representations from a 1D-CNN or transformer model could capture patterns that manual feature engineering misses.
+    
+    \item \textbf{Cross-dataset validation:} Evaluating on additional datasets (CHB-MIT, TUH EEG Corpus) would test the robustness of the feature set and ensemble approach across different recording conditions and patient populations.
+    
+    \item \textbf{Clinical pilot:} Deploying the system in a hospital or clinic for prospective evaluation by neurologists would provide real-world feedback on usability, trust, and clinical utility.
+\end{enumerate}

@@ -1,0 +1,255 @@
+
+This chapter describes the implementation of each module in detail, including formal algorithms for the core processing steps. The system is implemented in Python 3.8+ on the backend and vanilla HTML/CSS/JavaScript on the frontend.
+
+\section{Signal Preprocessing}
+
+The preprocessing module operates on the raw 4097-sample signals loaded from the Bonn dataset. Two operations are applied sequentially.
+
+\subsection{Bandpass Filtering}
+
+A fourth-order Butterworth bandpass filter is designed with cutoff frequencies at 0.5~Hz and 85~Hz. The lower cutoff removes DC drift and slow baseline wander, while the upper cutoff attenuates high-frequency noise above the usable EEG range. The Nyquist frequency for the Bonn dataset is $173.61 / 2 = 86.8$~Hz.
+
+Filtering is performed using SciPy's \texttt{filtfilt} function, which applies the filter both forward and backward. This zero-phase approach ensures that no time delay is introduced, which is important for preserving the temporal alignment of features across segments.
+
+\subsection{Z-Score Normalization}
+
+After filtering, each signal is normalized by subtracting its mean and dividing by its standard deviation. This brings all signals to a common scale (mean~=~0, std~=~1), ensuring that the feature extraction pipeline is not biased by differences in absolute amplitude across recordings.
+
+\section{Multi-Domain Feature Extraction}
+
+Feature extraction is the most computationally intensive module. Each signal is processed through four domain-specific extractors, and the resulting per-segment features are aggregated into a single vector.
+
+\subsection{Signal Segmentation}
+
+Each 4097-sample signal is divided into 16 non-overlapping segments of approximately 256 samples each. Computing features at the segment level captures local temporal variations that a whole-signal analysis would average out. For instance, a brief burst of high-frequency activity in one segment would contribute to that segment's spectral features even if the surrounding segments are calm.
+
+\subsection{Discrete Wavelet Transform}
+
+A manual implementation of the Daubechies-4 (DB4) wavelet is used, avoiding external wavelet library dependencies. The signal is decomposed into 4 levels, producing 5 sub-bands:
+
+\begin{itemize}
+    \item \textbf{A4} (Approximation): captures delta-range activity (0--5~Hz)
+    \item \textbf{D4} (Detail Level 4): captures theta/alpha activity (5--11~Hz)
+    \item \textbf{D3} (Detail Level 3): captures alpha/beta activity (11--22~Hz)
+    \item \textbf{D2} (Detail Level 2): captures beta/gamma activity (22--43~Hz)
+    \item \textbf{D1} (Detail Level 1): captures gamma activity (43--87~Hz)
+\end{itemize}
+
+For each sub-band, 15 statistical measures are computed: mean, maximum, minimum, variance, wavelet entropy, energy, max absolute value, min absolute value, standard deviation, kurtosis, skewness, RMS, zero-crossing rate, mean absolute deviation, and coefficient of variation. Together these statistics capture the amplitude distribution, energy concentration, and signal regularity within each frequency band, providing a rich multi-scale characterisation of seizure-related spectral activity.
+
+\subsection{Time-Domain Features}
+
+Seventeen time-domain features are computed for each segment, including Hjorth parameters (mobility, complexity)~\citep{hjorth1970eeg}, Teager energy operator~\citep{kaiser1990simple}, line length, and standard statistical measures. The Hjorth parameters, defined in Equations~\eqref{eq:hjorth_act}--\eqref{eq:hjorth_comp}, characterise the signal in terms of power, frequency content, and waveform complexity:
+
+\begin{align}
+    \text{Activity} &= \text{Var}(x) \label{eq:hjorth_act} \\[0.5em]
+    \text{Mobility} &= \sqrt{\frac{\text{Var}(x')}{\text{Var}(x)}} \label{eq:hjorth_mob} \\[0.5em]
+    \text{Complexity} &= \frac{\text{Mobility}(x')}{\text{Mobility}(x)} \label{eq:hjorth_comp}
+\end{align}
+
+where $x'$ denotes the first derivative of the signal segment. Activity represents signal power, Mobility reflects mean frequency, and Complexity quantifies how close the signal shape is to a pure sine wave.
+
+The Teager energy operator, defined in Equation~\eqref{eq:teager}, responds to rapid changes in both amplitude and frequency and is therefore sensitive to the high-energy bursts characteristic of ictal activity:
+
+\medskip
+\begin{equation}
+    \Psi[x(n)] = x(n)^2 - x(n-1) \cdot x(n+1)
+    \label{eq:teager}
+\end{equation}
+\medskip
+
+\subsection{Frequency-Domain Features}
+
+The FFT-derived features include total spectral power, peak frequency, mean frequency, median frequency, spectral entropy, and absolute and relative band powers for the five standard EEG bands (delta, theta, alpha, beta, gamma). Additionally, band power ratios (theta/alpha, delta/beta, slow/fast) and spectral edge frequencies at the 85th and 95th percentiles are computed. This gives 22 frequency-domain features per segment.
+
+\subsection{Nonlinear Features}
+
+Six nonlinear complexity measures are extracted:
+\begin{enumerate}
+    \item \textbf{Sample Entropy}~\citep{richman2000physiological}: quantifies signal unpredictability through template matching. It is defined as:
+    \begin{equation}
+        \text{SampEn}(m, r, N) = -\ln\frac{A}{B}
+        \label{eq:sampen}
+    \end{equation}
+    where $A$ is the number of template vector pairs of length $m+1$ within tolerance $r$, $B$ is the count for length $m$, and $N$ is the signal length. Lower values indicate more regular, predictable signals; seizure EEG typically exhibits elevated entropy.
+
+    \item \textbf{Permutation Entropy (orders 3 and 4)}~\citep{bandt2002permutation}: quantifies complexity through ordinal pattern analysis. It is defined as:
+    \begin{equation}
+        H_{\text{PE}} = -\sum_{\pi} p(\pi) \ln p(\pi)
+        \label{eq:perment}
+    \end{equation}
+    where the sum runs over all ordinal patterns $\pi$ of a given order $m$, and $p(\pi)$ is the relative frequency of each pattern. Computing at orders 3 and 4 captures complexity at different temporal scales.
+
+    \item \textbf{Detrended Fluctuation Analysis (DFA)}~\citep{peng1994mosaic}: measures long-range temporal correlations by estimating the scaling exponent $\alpha$ from the relationship $F(n) \sim n^{\alpha}$, where $F(n)$ is the root-mean-square fluctuation over window size $n$ after local trend removal.
+
+    \item \textbf{Higuchi Fractal Dimension}~\citep{higuchi1988approach}: measures signal roughness via the Higuchi algorithm with $k_{\max} = 8$. A higher fractal dimension indicates greater irregularity, which is a hallmark of ictal EEG.
+
+    \item \textbf{Rescaled-Range (Hurst-like exponent)}: estimates long-range dependence using the cumulative sum approach. Values near 0.5 indicate a random process; deviations signal persistent or anti-persistent dynamics.
+\end{enumerate}
+
+\subsection{Segment Aggregation}
+
+After computing 120 features per segment across 16 segments, the segment-level values are aggregated using six statistics: mean, standard deviation, maximum, minimum, median, and interquartile range. The final feature vector has $120 \times 6 = 720$ dimensions.
+
+Algorithm~\ref{alg:feature} presents the complete feature extraction procedure.
+
+\begin{algorithm}[ht]
+\caption{Multi-Domain Feature Extraction}
+\label{alg:feature}
+\SetAlgoLined
+\KwIn{EEG signal $\mathbf{x}$ of length 4097}
+\KwOut{Feature vector $\mathbf{f}$ of length 720}
+\BlankLine
+$N_{\text{seg}} \leftarrow 16$\;
+$L \leftarrow \lfloor |\mathbf{x}| / N_{\text{seg}} \rfloor$\;
+$\mathbf{F}_{\text{seg}} \leftarrow$ empty matrix of size $N_{\text{seg}} \times 120$\;
+\BlankLine
+\For{$i \leftarrow 0$ \KwTo $N_{\text{seg}} - 1$}{
+    $\mathbf{s} \leftarrow \mathbf{x}[iL : (i+1)L]$ \tcp*{Extract segment}
+    \BlankLine
+    $\mathbf{c} \leftarrow$ DWT-DB4 decompose $\mathbf{s}$ to depth 4\;
+    $\mathbf{f}_{\text{dwt}} \leftarrow$ Compute 15 statistics for each of 5 sub-bands in $\mathbf{c}$\;
+    \BlankLine
+    $\mathbf{f}_{\text{time}} \leftarrow$ Compute time-domain statistics for $\mathbf{s}$\;
+    $\mathbf{f}_{\text{freq}} \leftarrow$ Compute FFT-based spectral features for $\mathbf{s}$\;
+    $\mathbf{f}_{\text{nl}} \leftarrow$ Compute nonlinear complexity features for $\mathbf{s}$\;
+    \BlankLine
+    $\mathbf{F}_{\text{seg}}[i] \leftarrow [\mathbf{f}_{\text{dwt}} \| \mathbf{f}_{\text{time}} \| \mathbf{f}_{\text{freq}} \| \mathbf{f}_{\text{nl}}]$\;
+}
+\BlankLine
+\tcp{Aggregate across 16 segments}
+$\mathbf{f} \leftarrow [\text{mean}(\mathbf{F}_{\text{seg}}) \| \text{std}(\mathbf{F}_{\text{seg}}) \| \max(\mathbf{F}_{\text{seg}}) \| \min(\mathbf{F}_{\text{seg}}) \| \text{median}(\mathbf{F}_{\text{seg}}) \| \text{IQR}(\mathbf{F}_{\text{seg}})]$\;
+\BlankLine
+\Return $\mathbf{f}$\;
+\end{algorithm}
+
+\section{Feature Selection}
+
+Feature selection is handled through a union strategy. Two independent selectors are applied to the training data:
+
+\begin{enumerate}
+    \item \textbf{Mutual Information (MI):} Measures the mutual dependence between each feature and the target label. It captures both linear and nonlinear relationships.
+    
+    \item \textbf{ANOVA F-classif:} Computes the F-statistic for each feature, testing whether the feature distributions differ significantly between the seizure and non-seizure classes.
+\end{enumerate}
+
+Each selector identifies the top-200 features. The union of both sets creates a combined feature subset that retains any feature considered important by \textit{either} method. This typically results in 280--330 features, providing a broader perspective than a single selector while still substantially reducing dimensionality.
+
+\section{Ensemble Classification and Multi-Seed Training}
+
+The ensemble uses scikit-learn's~\citep{pedregosa2011scikit} \texttt{VotingClassifier} with \texttt{voting=`soft'}. Each of the eight classifiers outputs a probability for the seizure class, and the final probability is the unweighted average. The Random Forest and Extra Trees components follow Breiman's bagging formulation~\citep{breiman2001random}. Class imbalance (seizure signals constitute only 20\% of the dataset) is handled by assigning a weight of 4.0 to the minority class in classifiers that support class weights (RF, ET, HGB, SVM).
+
+To reduce the variance caused by random initialization (which affects MLP, random forests, and boosting algorithms), the ensemble is trained five times with seeds $\{42, 123, 456, 789, 2024\}$. The five sets of probability outputs are averaged to produce the final prediction. A sample is classified as seizure if its averaged probability exceeds 0.5.
+
+Algorithm~\ref{alg:ensemble} formalizes this multi-seed ensemble prediction procedure.
+
+\begin{algorithm}[ht]
+\caption{Multi-Seed Ensemble Prediction}
+\label{alg:ensemble}
+\SetAlgoLined
+\KwIn{Training data $(\mathbf{X}_{\text{train}}, \mathbf{y}_{\text{train}})$, test data $\mathbf{X}_{\text{test}}$}
+\KwOut{Predicted probabilities $\mathbf{p}$ for seizure class}
+\BlankLine
+$\mathcal{S} \leftarrow \{42, 123, 456, 789, 2024\}$  \tcp*{Seed set}
+$\mathbf{P} \leftarrow$ empty list of probability vectors\;
+\BlankLine
+\ForEach{$s \in \mathcal{S}$}{
+    $\mathcal{E}_s \leftarrow$ BuildEnsemble$(s)$ \tcp*{8 classifiers with seed $s$}
+    
+    \tcp{The ensemble contains: RF, ET, HGB, GBM, AdaBoost, SVM, MLP, KNN}
+    
+    Fit $\mathcal{E}_s$ on $(\mathbf{X}_{\text{train}}, \mathbf{y}_{\text{train}})$\;
+    $\mathbf{p}_s \leftarrow \mathcal{E}_s.\text{predict\_proba}(\mathbf{X}_{\text{test}})[:, 1]$ \tcp*{Seizure prob.}
+    Append $\mathbf{p}_s$ to $\mathbf{P}$\;
+}
+\BlankLine
+$\mathbf{p} \leftarrow \text{mean}(\mathbf{P})$ \tcp*{Average across all seeds}
+\BlankLine
+\For{$j \leftarrow 0$ \KwTo $|\mathbf{p}| - 1$}{
+    \eIf{$\mathbf{p}[j] \geq 0.5$}{
+        $\hat{y}[j] \leftarrow$ Seizure\;
+    }{
+        $\hat{y}[j] \leftarrow$ Normal\;
+    }
+}
+\BlankLine
+\Return $\mathbf{p}$, $\hat{\mathbf{y}}$\;
+\end{algorithm}
+
+\section{Cross-Validation}
+
+The model is evaluated using 10-fold stratified cross-validation. In each fold:
+
+\begin{enumerate}
+    \item \textbf{Scaling:} \texttt{StandardScaler} is fit on the training split and applied to both training and test splits.
+    \item \textbf{Feature Selection:} The MI and F-classif selectors are fit on the training split. The union of their top-200 features is applied to both splits.
+    \item \textbf{Training:} The multi-seed ensemble is trained on the selected features of the training split.
+    \item \textbf{Evaluation:} Predictions on the test split are scored with accuracy, precision, recall, F1-score, AUC-ROC, specificity, and Cohen's kappa.
+\end{enumerate}
+
+Stratification ensures that each fold maintains approximately the same seizure-to-normal ratio as the full dataset (1:4). The scaler, feature indices, and trained ensemble from the final fold are saved to disk for use by the Flask API at inference time.
+
+\section{SHAP-Based Explainability}
+
+Two types of SHAP explanations are computed:
+
+\subsection{Global Feature Importance}
+
+The built-in \texttt{feature\_importances\_} attribute is extracted from each tree-based model in the ensemble (RF, ET, HGB, GBM, AdaBoost). Each model's importances are normalized to sum to 1, and then averaged across all five tree-based models. The top 20 features are plotted as a horizontal bar chart.
+
+\subsection{Multi-Tree SHAP Analysis}
+
+SHAP values are computed using \texttt{TreeExplainer} on the Random Forest, Extra Trees, and Gradient Boosting components of the ensemble. The SHAP values from these three models are averaged to produce a combined attribution that reflects the consensus of multiple tree-based learners. A summary beeswarm plot and a bar plot of mean absolute SHAP values are generated and saved for the top 20 features.
+
+\subsection{Permutation Importance}
+
+Permutation importance is computed using the full eight-classifier ensemble. For each feature, its values are randomly shuffled across the test set, and the resulting drop in accuracy is measured. Features whose shuffling causes a large accuracy drop are deemed important. This approach complements SHAP by covering all eight classifiers, including SVM, MLP, and KNN which are not covered by TreeExplainer.
+
+\section{REST API Implementation}
+
+The Flask API exposes the following endpoints:
+
+\begin{table}[H]
+\centering
+\renewcommand{\arraystretch}{1.3}
+\caption{REST API Endpoints.}
+\label{tab:apiendpoints}
+\resizebox{\textwidth}{!}{%
+\begin{tabular}{|p{3.5cm}|p{1.5cm}|p{9cm}|}
+\hline
+\textbf{Endpoint} & \textbf{Method} & \textbf{Description} \\
+\hline
+\texttt{/health} & GET & Returns model readiness status. \\
+\hline
+\texttt{/demo} & GET & Loads a real EEG sample from the Bonn dataset; accepts query parameters for class selection. \\
+\hline
+\texttt{/predict} & POST & Accepts a JSON body with an \texttt{eeg} array; returns prediction, probability, and confidence score. \\
+\hline
+\texttt{/upload} & POST & Accepts a CSV or TXT file upload; returns the same prediction payload. \\
+\hline
+\texttt{/metrics} & GET & Returns saved cross-validation metrics as JSON. \\
+\hline
+\texttt{/xai/importance} & GET & Returns the feature importance bar chart as a PNG image. \\
+\hline
+\texttt{/xai/shap} & GET & Returns the SHAP summary beeswarm plot as a PNG image. \\
+\hline
+\texttt{/xai/shap-bar} & GET & Returns the SHAP bar plot as a PNG image. \\
+\hline
+\texttt{/xai/permutation} & GET & Returns the permutation importance plot as a PNG image. \\
+\hline
+\end{tabular}%
+}
+\end{table}
+
+Cross-Origin Resource Sharing (CORS) is enabled globally so that the frontend, which may be served from a different origin, can communicate with the API without restrictions.
+
+\section{Web Dashboard Implementation}
+
+The frontend is a single-page application built with vanilla HTML, CSS, and JavaScript. Chart.js is used for the EEG signal waveform and bar charts. The interface is organized into four sections:
+
+\begin{enumerate}
+    \item \textbf{Analyze:} EEG signal input (upload or demo sample), waveform visualization, and prediction result with confidence ring.
+    \item \textbf{Explain:} SHAP summary beeswarm, SHAP bar chart, feature importance, and permutation importance plots.
+    \item \textbf{Performance:} Model metrics (accuracy, precision, recall, F1, AUC-ROC) displayed both as cards and bar charts.
+    \item \textbf{About:} Project description, dataset details, ensemble architecture overview, and feature breakdown.
+\end{enumerate}
