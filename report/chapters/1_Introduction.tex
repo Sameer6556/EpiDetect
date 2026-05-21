@@ -76,28 +76,3 @@ Development was carried out over four months, from January to April 2026, organi
 \section{Organization of the Report}
 
 The remainder of this report is laid out as follows. Chapter~2 surveys existing literature on automated seizure detection, discussing the strengths and shortcomings of earlier methods. Chapter~3 covers requirements engineering, including feasibility analysis, use case modelling, and the software requirement specification. Chapter~4 describes the system design with architecture diagrams, data flow, and module-level design. Chapter~5 presents the implementation in detail, along with formal algorithms for the core components. Chapter~6 reports the experimental results, classification metrics, and a comparison with related work. Chapter~7 concludes the report with a summary of contributions and directions for future work.
-
-
-% ============================================
-% TEMP DRAFT SECTIONS (TO BE REMOVED/REWRITTEN)
-% ============================================
-
-\section*{Draft Notes (Not for final)}
-Here are some things we need to make sure we include in the final report:
-\begin{itemize}
-    \item Make sure to explain WHY we chose XGBoost over Random Forest. (Hint: better handling of class imbalance and faster inference).
-    \item Need to add the SHAP plots in the results section. The reviewers will definitely want to see feature interpretability.
-    \item Don't forget to cite the CHB-MIT dataset properly.
-    \item The related work section is too short right now. We need at least 5 more recent papers (2023-2025).
-\end{itemize}
-
-\subsection*{Random Brain Dump}
-The preprocessing pipeline was a pain. We tried a bandpass filter of 0.5-50Hz but it was stripping out too much high-frequency gamma activity which turned out to be important for seizure onset detection. We changed it to 0.5-100Hz with a notch filter at 50Hz (for powerline noise).
-
-The frontend was built quickly just to have a demo for the presentation. Might need to polish the UI if we want to open source this.
-
-\textbf{TODO LIST:}
-- Fix bibliography formatting
-- Update architecture diagram (it's outdated)
-- Add confusion matrix to results
-- Spell check the whole document
